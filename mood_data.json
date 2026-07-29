@@ -1,0 +1,22 @@
+{
+  "😊": {
+    "mood": "Happy",
+    "quote": "Happiness is not by chance, but by choice. Keep smiling!"
+  },
+  "😢": {
+    "mood": "Sad",
+    "quote": "Tough times never last, but tough people do. You're stronger than you know."
+  },
+  "😡": {
+    "mood": "Angry",
+    "quote": "Breathe. It's just a bad moment, not a bad life."
+  },
+  "😴": {
+    "mood": "Tired",
+    "quote": "Rest if you must, but don't you quit. You've got this."
+  },
+  "🤔": {
+    "mood": "Confused",
+    "quote": "Clarity comes with time. Trust the process."
+  }
+}
