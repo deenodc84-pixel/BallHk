@@ -1,17 +1,23 @@
 import logging
 import json
-import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from config import BOT_TOKEN
 
 # Enable logging
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 # Load mood data
-with open("mood_data.json", "r") as f:
-    MOOD_DATA = json.load(f)
+try:
+    with open("mood_data.json", "r") as f:
+        MOOD_DATA = json.load(f)
+except FileNotFoundError:
+    logger.error("mood_data.json not found!")
+    MOOD_DATA = {}
 
 # /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -50,21 +56,33 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 # /vibe command – sends an inline keyboard with emojis
 async def vibe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
-        [InlineKeyboardButton("😊 Happy", callback_data="😊")],
-        [InlineKeyboardButton("😢 Sad", callback_data="😢")],
-        [InlineKeyboardButton("😡 Angry", callback_data="😡")],
-        [InlineKeyboardButton("😴 Tired", callback_data="😴")],
-        [InlineKeyboardButton("🤔 Confused", callback_data="🤔")],
+        [InlineKeyboardButton("😊 Happy", callback_data="happy")],
+        [InlineKeyboardButton("😢 Sad", callback_data="sad")],
+        [InlineKeyboardButton("😡 Angry", callback_data="angry")],
+        [InlineKeyboardButton("😴 Tired", callback_data="tired")],
+        [InlineKeyboardButton("🤔 Confused", callback_data="confused")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("How are you feeling right now? Pick an emoji:", reply_markup=reply_markup)
+    await update.message.reply_text(
+        "How are you feeling right now? Pick an emoji:", 
+        reply_markup=reply_markup
+    )
 
 # Handle the callback from the inline keyboard
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()  # Acknowledge the button press
 
-    emoji = query.data
+    # Map callback data to emojis
+    mood_map = {
+        "happy": "😊",
+        "sad": "😢",
+        "angry": "😡",
+        "tired": "😴",
+        "confused": "🤔"
+    }
+    
+    emoji = mood_map.get(query.data, "😊")
     mood_info = MOOD_DATA.get(emoji)
 
     if mood_info:
@@ -76,23 +94,30 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             "Remember: This too shall pass. Keep going!"
         )
     else:
-        response = "Oops! I don't recognize that emoji. Try /vibe again."
+        response = "Oops! I don't recognize that mood. Try /vibe again."
 
     await query.edit_message_text(response, parse_mode="Markdown")
 
 # Main function
 def main() -> None:
-    app = Application.builder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("about", about_command))
-    app.add_handler(CommandHandler("vibe", vibe))
-    app.add_handler(CallbackQueryHandler(button_callback))
-
-    # Start the bot (polling)
-    app.run_polling()
-    logger.info("Bot is running...")
+    try:
+        # Create the Application
+        application = Application.builder().token(BOT_TOKEN).build()
+        
+        # Add handlers
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("help", help_command))
+        application.add_handler(CommandHandler("about", about_command))
+        application.add_handler(CommandHandler("vibe", vibe))
+        application.add_handler(CallbackQueryHandler(button_callback))
+        
+        # Start the bot
+        logger.info("Bot is starting...")
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+        
+    except Exception as e:
+        logger.error(f"Error starting bot: {e}")
+        raise
 
 if __name__ == "__main__":
     main()
