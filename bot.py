@@ -1,8 +1,15 @@
 import logging
 import json
+import sys
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-from config import BOT_TOKEN
+
+# Load token from config
+try:
+    from config import BOT_TOKEN
+except ImportError:
+    print("ERROR: config.py not found! Create it with BOT_TOKEN")
+    sys.exit(1)
 
 # Enable logging
 logging.basicConfig(
@@ -15,8 +22,12 @@ logger = logging.getLogger(__name__)
 try:
     with open("mood_data.json", "r") as f:
         MOOD_DATA = json.load(f)
+    logger.info("Mood data loaded successfully")
 except FileNotFoundError:
     logger.error("mood_data.json not found!")
+    MOOD_DATA = {}
+except json.JSONDecodeError:
+    logger.error("Invalid JSON in mood_data.json!")
     MOOD_DATA = {}
 
 # /start command
@@ -53,7 +64,7 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
     await update.message.reply_text(about_text, parse_mode="Markdown")
 
-# /vibe command – sends an inline keyboard with emojis
+# /vibe command
 async def vibe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
         [InlineKeyboardButton("😊 Happy", callback_data="happy")],
@@ -68,12 +79,11 @@ async def vibe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=reply_markup
     )
 
-# Handle the callback from the inline keyboard
+# Handle callback
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()  # Acknowledge the button press
-
-    # Map callback data to emojis
+    await query.answer()
+    
     mood_map = {
         "happy": "😊",
         "sad": "😢",
@@ -101,23 +111,18 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # Main function
 def main() -> None:
     try:
-        # Create the Application
+        logger.info("Starting BallHk88BOT...")
         application = Application.builder().token(BOT_TOKEN).build()
-        
-        # Add handlers
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("help", help_command))
         application.add_handler(CommandHandler("about", about_command))
         application.add_handler(CommandHandler("vibe", vibe))
         application.add_handler(CallbackQueryHandler(button_callback))
-        
-        # Start the bot
-        logger.info("Bot is starting...")
+        logger.info("Bot is running and polling...")
         application.run_polling(allowed_updates=Update.ALL_TYPES)
-        
     except Exception as e:
-        logger.error(f"Error starting bot: {e}")
-        raise
+        logger.error(f"Fatal error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
