@@ -1,1 +1,1 @@
-worker: python bot.py
+worker: . .venv/bin/activate && python bot.py
