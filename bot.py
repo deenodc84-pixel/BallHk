@@ -1,15 +1,18 @@
 import logging
 import json
 import sys
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# Load token from config
+# Load token
 try:
     from config import BOT_TOKEN
 except ImportError:
-    print("ERROR: config.py not found! Create it with BOT_TOKEN")
-    sys.exit(1)
+    BOT_TOKEN = os.environ.get("BOT_TOKEN")
+    if not BOT_TOKEN:
+        print("ERROR: BOT_TOKEN not found in config.py or environment variables!")
+        sys.exit(1)
 
 # Enable logging
 logging.basicConfig(
@@ -19,16 +22,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Load mood data
-try:
-    with open("mood_data.json", "r") as f:
-        MOOD_DATA = json.load(f)
-    logger.info("Mood data loaded successfully")
-except FileNotFoundError:
-    logger.error("mood_data.json not found!")
-    MOOD_DATA = {}
-except json.JSONDecodeError:
-    logger.error("Invalid JSON in mood_data.json!")
-    MOOD_DATA = {}
+def load_mood_data():
+    try:
+        with open("mood_data.json", "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error("mood_data.json not found!")
+        return {}
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON in mood_data.json!")
+        return {}
+
+MOOD_DATA = load_mood_data()
 
 # /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -36,7 +41,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     welcome_text = (
         f"Hey {user.first_name}! 👋\n\n"
         "I'm **BallHk88BOT** – your daily mood booster!\n"
-        "Type /vibe to take a quick emoji quiz and get a motivational quote tailored to your mood.\n"
+        "Type /vibe to take a quick emoji quiz and get a motivational quote.\n"
         "Type /help to see all commands."
     )
     await update.message.reply_text(welcome_text, parse_mode="Markdown")
@@ -49,7 +54,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/vibe - Start the mood quiz\n"
         "/help - Show this menu\n"
         "/about - Learn about this bot\n\n"
-        "Just type /vibe and pick an emoji – I'll do the rest!"
+        "Just type /vibe and pick an emoji!"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
@@ -113,13 +118,16 @@ def main() -> None:
     try:
         logger.info("Starting BallHk88BOT...")
         application = Application.builder().token(BOT_TOKEN).build()
+        
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("help", help_command))
         application.add_handler(CommandHandler("about", about_command))
         application.add_handler(CommandHandler("vibe", vibe))
         application.add_handler(CallbackQueryHandler(button_callback))
+        
         logger.info("Bot is running and polling...")
         application.run_polling(allowed_updates=Update.ALL_TYPES)
+        
     except Exception as e:
         logger.error(f"Fatal error: {e}")
         sys.exit(1)
